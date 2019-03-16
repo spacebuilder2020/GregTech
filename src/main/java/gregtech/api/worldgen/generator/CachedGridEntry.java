@@ -177,7 +177,22 @@ public class CachedGridEntry implements GridEntryInfo, IBlockGeneratorAccess, IB
         }
         return false;
     }
-
+    public boolean populateCube(World world, int chunkX, int chunkY, int chunkZ, Random random) {
+        long chunkId = (long) chunkX << 32 | chunkZ & 0xFFFFFFFFL;
+        ChunkDataEntry chunkDataEntry = dataByChunkPos.get(chunkId);
+        GTWorldGenCapability capability = retrieveCapability(world, chunkX, chunkZ);
+        capability.setFrom(masterEntry);
+        if(chunkDataEntry != null && chunkDataEntry.populateCube(world, chunkY)) {
+            for(OreDepositDefinition definition : chunkDataEntry.generatedOres) {
+                IVeinPopulator veinPopulator = definition.getVeinPopulator();
+                if(veinPopulator instanceof VeinChunkPopulator) {
+                    ((VeinChunkPopulator) veinPopulator).populateChunk(world, chunkX, chunkZ, random, definition, this);
+                }
+            }
+            return true;
+        }
+        return false;
+    }
     private GTWorldGenCapability retrieveCapability(World world, int chunkX, int chunkZ) {
         return world.getChunkFromChunkCoords(chunkX, chunkZ).getCapability(GTWorldGenCapability.CAPABILITY, null);
     }
@@ -297,6 +312,49 @@ public class CachedGridEntry implements GridEntryInfo, IBlockGeneratorAccess, IB
             longList.add(blockIndex);
         }
 
+        public boolean populateCube(World world, int y) {
+            MutableBlockPos blockPos = new MutableBlockPos();
+            boolean generatedAnything = false;
+            for(OreDepositDefinition definition : oreBlocks.keySet()) {
+                TLongList blockIndexList = oreBlocks.get(definition);
+                boolean generatedOreVein = false;
+                for(int i = 0; i < blockIndexList.size(); i++) {
+                    long blockIndex = blockIndexList.get(i);
+                    int xyzValue = (int) (blockIndex >> 32);
+                    int blockX = (byte) xyzValue;
+                    int blockZ = (byte) (xyzValue >> 8);
+                    int blockY = (short) (xyzValue >> 16);
+                    int index = (int) blockIndex;
+                    if (blockY >= y*16 && blockY < (y+1)*16)
+                    {
+                        blockPos.setPos(chunkX * 16 + blockX, blockY, chunkZ * 16 + blockZ);
+                        IBlockState currentState = world.getBlockState(blockPos);
+                        IBlockState newState;
+                        if (index == 0)
+                        {
+                            //it's primary ore block
+                            if (!definition.getGenerationPredicate().test(currentState, world, blockPos))
+                                continue; //do not generate if predicate didn't match
+                            newState = definition.getBlockFiller().apply(currentState, world, blockPos, blockX, blockY, blockZ);
+                        }
+                        else
+                        {
+                            //it's populator-generated block with index
+                            VeinBufferPopulator populator = (VeinBufferPopulator) definition.getVeinPopulator();
+                            newState = populator.getBlockByIndex(world, blockPos, index - 1);
+                        }
+                        //set flags as 16 to avoid observer updates loading neighbour chunks
+                        world.setBlockState(blockPos, newState, 16);
+                        generatedOreVein = true;
+                        generatedAnything = true;
+                    }
+                }
+                if(generatedOreVein) {
+                    this.generatedOres.add(definition);
+                }
+            }
+            return generatedAnything;
+        }
         public boolean populateChunk(World world) {
             MutableBlockPos blockPos = new MutableBlockPos();
             boolean generatedAnything = false;

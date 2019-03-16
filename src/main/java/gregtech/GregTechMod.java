@@ -30,6 +30,7 @@ import gregtech.common.items.MetaItems;
 import gregtech.common.metatileentities.MetaTileEntities;
 import gregtech.common.multipart.GTMultipartFactory;
 import gregtech.common.worldgen.WorldGenRubberTree;
+import gregtech.integration.cubicchunks.CubicChunksCompatibility;
 import gregtech.integration.theoneprobe.TheOneProbeCompatibility;
 import gregtech.loaders.dungeon.DungeonLootLoader;
 import net.minecraftforge.classloading.FMLForgePlugin;
@@ -129,6 +130,11 @@ public class GregTechMod {
         WorldGenRegistry.INSTANCE.initializeRegistry();
         if(!ConfigHolder.disableRubberTreeGeneration) {
             GameRegistry.registerWorldGenerator(new WorldGenRubberTree(), 10000);
+        }
+
+        if (GTValues.isModLoaded(GTValues.MODID_CC)) {
+            GTLog.logger.info("CubicChunks found. Enabling integration...");
+            CubicChunksCompatibility.registerCompatibility();
         }
 
         CoverBehaviors.init();
