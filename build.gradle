@@ -96,7 +96,7 @@ dependencies {
     deobfCompile "mcjty.theoneprobe:TheOneProbe-${shortVersion}:${shortVersion}-${config.top.version}"
     deobfCompile "cofh:ThermalDynamics:${config.minecraft.version}-${config.thermaldynamics.version}:deobf"
 
-    deobfCompile("io.github.opencubicchunks:cubicchunks:1.12.2-0.0-SNAPSHOT") {
+    deobfCompile("io.github.opencubicchunks:cubicchunks-api:1.12.2-0.0-SNAPSHOT") {
         transitive = false
     }
 }
